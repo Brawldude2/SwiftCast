@@ -11,4 +11,4 @@ local Config: Types.Config = {
 	-- Switches between BulkMoveTo and Transform movement methods
 	MovementMethod = "BulkMoveTo",
 }
-return table.freeze(Config) :: Types.Config
+return table.freeze(Config)

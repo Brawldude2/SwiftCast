@@ -6,7 +6,6 @@ Simulation.IsRunning = false
 
 local RunService = game:GetService("RunService")
 local Types = require(script.Parent.Types)
-local Debug = require(script.Parent.Debug)
 local Config = require(script.Parent.Config)
 local ProjectileSettings = require(script.Parent.ProjectileSettings)
 
@@ -15,12 +14,15 @@ type ProjectileEvent = Types.ProjectileEvent
 type ProjectileSettings = Types.ProjectileSettings
 type ProjectileContructorArgs = Types.ProjectileContructorArgs
 
+local EPSILON = 1e-6
+
 local ActiveInstancedProjectiles: {Projectile} = {}
 local ActiveInstancelessProjectiles: {Projectile} = {}
 
 local QueuedProjectileEvents: {ProjectileEvent} = {}
 
 local PartTemplate = Instance.new("Part") :: BasePart
+local Motor6DTemplate = Instance.new("Motor6D")
 local Motor6DAnchor = Instance.new("Part")
 Motor6DAnchor.Name = "SwiftCastAnchor"
 Motor6DAnchor.Transparency = 1
@@ -32,9 +34,10 @@ Motor6DAnchor.EnableFluidForces = false
 Motor6DAnchor.Anchored = true
 Motor6DAnchor.CFrame = CFrame.identity
 Motor6DAnchor.Parent = workspace
-local Motor6DTemplate = Instance.new("Motor6D")
+
 local DefaultProjectileSettings = ProjectileSettings.new()
 local StepConnection: RBXScriptConnection? = nil
+
 
 local function OnError(errorMessage: string)
 	warn(errorMessage)
@@ -169,50 +172,56 @@ local function MarkProjectileAsDestroyed(projectile: Projectile, reason: string?
 end
 
 local function UpdateProjectile(projectile: Projectile, deltaTime: number)
+	projectile.Elapsed += deltaTime
+	if projectile.Elapsed >= projectile.MaxFlyTime then
+		MarkProjectileAsDestroyed(projectile, "MaxTime")
+		return
+	end
+	
 	local position = projectile.Position
-	local raysPerMove = projectile.RaysPerMove
-	local raycastParams = projectile.RaycastParams
-	local raycastFunction = projectile.RaycastFunction
-
+	
 	local newVelocity = projectile.Velocity + projectile.Acceleration * deltaTime
 	local newPosition = position + newVelocity * deltaTime
+	
+	local deltaPosition = newPosition - position
+	local distance = deltaPosition.Magnitude
 
-	local difference = newPosition - position
-	local distance = difference.Magnitude
+	if distance <= EPSILON then
+		QueueProjectileEvent(projectile.OnStep, projectile, deltaTime)
+		return
+	end
+	
+	projectile.DistanceTravelled += distance
+	if projectile.DistanceTravelled >= projectile.MaxFlyDistance then
+		MarkProjectileAsDestroyed(projectile, "MaxDistance")
+		return
+	end
 
+	local direction = newVelocity.Unit
+	local raycastFunction = projectile.RaycastFunction
+	local raycastParams = projectile.RaycastParams
+	local raysPerMove = projectile.RaysPerMove
 	local rayMagnitude = distance / raysPerMove
 
 	for iteration = 1, raysPerMove do
-		local rayDirection = difference.Unit * rayMagnitude
+		local rayDirection = direction * rayMagnitude
 		local raycastResult = raycastFunction(position + rayDirection * (iteration - 1), rayDirection, raycastParams, projectile, iteration)
-		--Debug.VisualizeSegment(CFrame.lookAlong(position + rayDirection * (iteration - 1), difference.Unit), rayMagnitude, Color3.new())
 		if raycastResult then
 			local canPierce = GetCanPierce(projectile, raycastResult)
 
 			if canPierce == true then
 				QueueProjectileEvent(projectile.OnRayPierce, projectile, raycastResult)
-				--Debug.VisualizeDot(raycastResult.Position, Color3.new(0.0235294, 0.439216, 0.501961), Vector3.new(0.2, 0.2, 0.2))
 			else
 				MarkProjectileAsDestroyed(projectile, "Hit")
-				--Debug.VisualizeDot(raycastResult.Position, Color3.new(1), Vector3.new(0.2, 0.2, 0.2))
 				return
 			end
 		end
 	end
-	
-	projectile.DistanceTravelled += distance
-	projectile.Elapsed += deltaTime
 
-	if projectile.DistanceTravelled >= projectile.MaxFlyDistance then
-		MarkProjectileAsDestroyed(projectile, "MaxDistance")
-		return
-	elseif projectile.Elapsed >= projectile.MaxFlyTime then
-		MarkProjectileAsDestroyed(projectile, "MaxTime")
-		return
-	end
+	QueueProjectileEvent(projectile.OnStep, projectile, deltaTime)
+	QueueProjectileEvent(projectile.OnPositionChange, projectile, newPosition, position)
 
-	QueueProjectileEvent(projectile.OnStep, projectile, position, newPosition)
-
+	projectile.PreviousPosition = position
 	projectile.Position = newPosition
 	projectile.Velocity = newVelocity
 end
@@ -252,10 +261,7 @@ local function NewProjectile(constructorArgs: ProjectileContructorArgs, projecti
 		canPierce = projectileSettings.CanPierce
 	end
 	local projectilePart = constructorArgs.ProjectilePart
-	local projectilePartRotation = CFrame.identity
-	if projectilePart then
-		projectilePartRotation = projectilePart.CFrame.Rotation
-	end
+	local projectilePartRotation = if projectilePart then projectilePart.CFrame.Rotation else CFrame.identity
 	local projectile: Projectile = {
 		_Active = false,
 		_Destroyed = false,
@@ -285,6 +291,7 @@ local function NewProjectile(constructorArgs: ProjectileContructorArgs, projecti
 		
 		OnRayPierce = constructorArgs.OnRayPierce,
 		OnStep = constructorArgs.OnStep,
+		OnPositionChange = constructorArgs.OnPositionChange,
 		OnDestroy = constructorArgs.OnDestroy,
 		PostTransform = constructorArgs.PostTransform,
 

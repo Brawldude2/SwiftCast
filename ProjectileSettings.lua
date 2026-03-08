@@ -14,7 +14,6 @@ function ProjectileSettings.new(projectileSettings: Types.ProjectileSettingsOpti
 		RaysPerMove =  projectileSettings.RaysPerMove or 1,
 		RaycastParams = projectileSettings.RaycastParams or RaycastParams.new(),
 		RaycastFunction = projectileSettings.RaycastFunction or RaycastFunctions.Default,
-		ProjectileContainer = projectileSettings.ProjectileContainer or workspace,
 		CanPierce = projectileSettings.CanPierce or false,
 		BlockcastSize = projectileSettings.BlockcastSize,
 		SpherecastRadius = projectileSettings.SpherecastRadius,

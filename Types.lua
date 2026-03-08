@@ -5,7 +5,8 @@ export type RaycastFunction = (rayOrigin: Vector3, rayDirection: Vector3, raycas
 
 export type PostTransform = (projectile: Projectile) -> ()
 export type PostTransformSafe = (projectile: Projectile) -> ()
-export type OnStep = (projectile: Projectile, newPosition: Vector3, oldPosition: Vector3) -> ()
+export type OnStep = (projectile: Projectile, deltaTime: number) -> ()
+export type OnPositionChange = (projectile: Projectile, newPosition: Vector3, oldPosition: Vector3) -> ()
 export type OnRayPierce = (projectile: Projectile, result: RaycastResult) -> ()
 export type OnDestroy = (projectile: Projectile, reason: string | "MaxTime" | "MaxDistance" | "Hit" | nil) -> ()
 export type CanPierceCallback = (projectile: Projectile, result: RaycastResult) -> (boolean)
@@ -59,6 +60,7 @@ export type ProjectileContructorArgs = {
 
 	OnRayPierce: OnRayPierce?,
 	OnStep: OnStep?,
+	OnPositionChange: OnPositionChange?,
 	OnDestroy: OnDestroy?,
 	PostTransform: PostTransform?,
 	PostTransformSafe: PostTransformSafe?,
@@ -83,6 +85,7 @@ export type Projectile = {
 	_PostTransformFireConnection: RBXScriptConnection?,
 	
 	-- State
+	PreviousPosition: Vector3,
 	Position: Vector3,
 	Velocity: Vector3,
 	Acceleration: Vector3,
@@ -102,6 +105,7 @@ export type Projectile = {
 	CanPierce: CanPierce,
 	OnRayPierce: OnRayPierce?,
 	OnStep: OnStep?,
+	OnPositionChange: OnPositionChange?,
 	OnDestroy: OnDestroy?,
 	PostTransform: PostTransform?,
 	PostTransformSafe: PostTransformSafe?,
