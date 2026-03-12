@@ -99,38 +99,38 @@ local DispatchAllProjectileEvents: () -> ()
 local DispatchLastProjectileEvents: (removeCount: number) -> ()
 if Config.UseProtectedCalls == true then
 	DispatchAllProjectileEvents = function()
-		local events = QueuedProjectileEvents
-		QueuedProjectileEvents = {}
-		for _, event in events do
+		for _, event in QueuedProjectileEvents do
 			xpcall(event.Callback, OnError, event.Projectile, event.Arg1, event.Arg2)
 		end
+		table.clear(QueuedProjectileEvents)
 	end
 	DispatchLastProjectileEvents = function(removeCount)
 		if removeCount <= 0 then return end
-		local lastEvents = table.create(removeCount)
-		for i = removeCount, 1, -1 do
-			lastEvents[i] = table.remove(QueuedProjectileEvents)
-		end
-		for _, event in lastEvents do
+		local eventCount = #QueuedProjectileEvents
+		for eventIndex = (eventCount - removeCount + 1), eventCount do
+			local event = QueuedProjectileEvents[eventIndex]
 			xpcall(event.Callback, OnError, event.Projectile, event.Arg1, event.Arg2)
+		end
+		for i = 1, removeCount do
+			table.remove(QueuedProjectileEvents)
 		end
 	end
 else
 	DispatchAllProjectileEvents = function()
-		local events = QueuedProjectileEvents
-		QueuedProjectileEvents = {}
-		for _, event in events do
+		for _, event in QueuedProjectileEvents do
 			event.Callback(event.Projectile, event.Arg1, event.Arg2)
 		end
+		table.clear(QueuedProjectileEvents)
 	end
 	DispatchLastProjectileEvents = function(removeCount)
 		if removeCount <= 0 then return end
-		local lastEvents = table.create(removeCount)
-		for i = removeCount, 1, -1 do
-			lastEvents[i] = table.remove(QueuedProjectileEvents)
-		end
-		for _, event in lastEvents do
+		local eventCount = #QueuedProjectileEvents
+		for eventIndex = (eventCount - removeCount + 1), eventCount do
+			local event = QueuedProjectileEvents[eventIndex]
 			event.Callback(event.Projectile, event.Arg1, event.Arg2)
+		end
+		for i = 1, removeCount do
+			table.remove(QueuedProjectileEvents)
 		end
 	end
 end
