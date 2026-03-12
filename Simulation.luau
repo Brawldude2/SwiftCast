@@ -12,7 +12,7 @@ local ProjectileSettings = require(script.Parent.ProjectileSettings)
 type Projectile = Types.Projectile
 type ProjectileEvent = Types.ProjectileEvent
 type ProjectileSettings = Types.ProjectileSettings
-type ProjectileContructorArgs = Types.ProjectileContructorArgs
+type ProjectileConstructorArgs = Types.ProjectileConstructorArgs
 
 local EPSILON = 1e-6
 
@@ -40,10 +40,10 @@ local StepConnection: RBXScriptConnection? = nil
 
 
 local function OnError(errorMessage: string)
-	warn(errorMessage)
+	warn(debug.traceback(errorMessage, 2))
 end
 
-local function ClearPostTranformConnections(projectile: Projectile)
+local function ClearPostTransformConnections(projectile: Projectile)
 	local connection = projectile._PostTransformFireConnection
 	if connection then
 		connection:Disconnect()
@@ -66,7 +66,7 @@ local function ConnectTransform(projectile: Projectile)
 	motor6d.Part0 = Motor6DAnchor
 	motor6d.Part1 = projectile.ProjectilePart
 	motor6d.Parent = Motor6DAnchor
-	ClearPostTranformConnections(projectile)
+	ClearPostTransformConnections(projectile)
 	projectile._ProjectileMotor6D = motor6d
 	if projectile.PostTransform then
 		projectile._PostTransformFireConnection = RunService.Heartbeat:Once(function(deltaTime: number)
@@ -98,38 +98,38 @@ local DispatchAllProjectileEvents: () -> ()
 local DispatchLastProjectileEvents: (removeCount: number) -> ()
 if Config.UseProtectedCalls == true then
 	DispatchAllProjectileEvents = function()
-		for _, event in QueuedProjectileEvents do
+		local events = QueuedProjectileEvents
+		QueuedProjectileEvents = {}
+		for _, event in events do
 			xpcall(event.Callback, OnError, event.Projectile, event.Arg1, event.Arg2)
 		end
-		table.clear(QueuedProjectileEvents)
 	end
 	DispatchLastProjectileEvents = function(removeCount)
 		if removeCount <= 0 then return end
-		local eventCount = #QueuedProjectileEvents
-		for eventIndex = (eventCount - removeCount + 1), eventCount do
-			local event = QueuedProjectileEvents[eventIndex]
-			xpcall(event.Callback, OnError, event.Projectile, event.Arg1, event.Arg2)
+		local lastEvents = table.create(removeCount)
+		for i = removeCount, 1, -1 do
+			lastEvents[i] = table.remove(QueuedProjectileEvents)
 		end
-		for i = 1, removeCount do
-			table.remove(QueuedProjectileEvents)
+		for _, event in lastEvents do
+			xpcall(event.Callback, OnError, event.Projectile, event.Arg1, event.Arg2)
 		end
 	end
 else
 	DispatchAllProjectileEvents = function()
-		for _, event in QueuedProjectileEvents do
+		local events = QueuedProjectileEvents
+		QueuedProjectileEvents = {}
+		for _, event in events do
 			event.Callback(event.Projectile, event.Arg1, event.Arg2)
 		end
-		table.clear(QueuedProjectileEvents)
 	end
 	DispatchLastProjectileEvents = function(removeCount)
 		if removeCount <= 0 then return end
-		local eventCount = #QueuedProjectileEvents
-		for eventIndex = (eventCount - removeCount + 1), eventCount do
-			local event = QueuedProjectileEvents[eventIndex]
-			event.Callback(event.Projectile, event.Arg1, event.Arg2)
+		local lastEvents = table.create(removeCount)
+		for i = removeCount, 1, -1 do
+			lastEvents[i] = table.remove(QueuedProjectileEvents)
 		end
-		for i = 1, removeCount do
-			table.remove(QueuedProjectileEvents)
+		for _, event in lastEvents do
+			event.Callback(event.Projectile, event.Arg1, event.Arg2)
 		end
 	end
 end
@@ -150,13 +150,14 @@ local function RemoveProjectile(projectile: Projectile)
 		projectileArray[index] = lastProjectile
 		lastProjectile._Index = index
 	end
+	projectile._ProjectileArray = nil
 end
 
 local function DestroyProjectile(projectile: Projectile)
 	if projectile._Destroyed then return end
 	RemoveProjectile(projectile)
 	DestroyProjectileMotor6D(projectile)
-	ClearPostTranformConnections(projectile)
+	ClearPostTransformConnections(projectile)
 	projectile._MarkedForDestruction = true
 	projectile._Destroyed = true
 end
@@ -253,7 +254,7 @@ else
 	end
 end
 
-local function NewProjectile(constructorArgs: ProjectileContructorArgs, projectileSettings: ProjectileSettings?): Projectile
+local function NewProjectile(constructorArgs: ProjectileConstructorArgs, projectileSettings: ProjectileSettings?): Projectile
 	local projectileSettings = projectileSettings or DefaultProjectileSettings
 	local position = constructorArgs.Position or Vector3.zero
 	local canPierce = constructorArgs.CanPierce :: Types.CanPierce
@@ -294,6 +295,7 @@ local function NewProjectile(constructorArgs: ProjectileContructorArgs, projecti
 		OnPositionChange = constructorArgs.OnPositionChange,
 		OnDestroy = constructorArgs.OnDestroy,
 		PostTransform = constructorArgs.PostTransform,
+		PostTransformSafe = constructorArgs.PostTransformSafe,
 
 		BlockcastSize = constructorArgs.BlockcastSize or projectileSettings.BlockcastSize,
 		SpherecastRadius = constructorArgs.SpherecastRadius or projectileSettings.SpherecastRadius,
@@ -309,7 +311,7 @@ local function NewProjectile(constructorArgs: ProjectileContructorArgs, projecti
 end
 
 -- Creates a projectile and activates it
-function Simulation.SpawnProjectile(constructorArgs: ProjectileContructorArgs, projectileSettings: ProjectileSettings?): Projectile
+function Simulation.SpawnProjectile(constructorArgs: ProjectileConstructorArgs, projectileSettings: ProjectileSettings?): Projectile
 	local projectile = NewProjectile(constructorArgs, projectileSettings)
 	projectile._Active = true
 	if projectile.ProjectilePart then
@@ -321,7 +323,7 @@ function Simulation.SpawnProjectile(constructorArgs: ProjectileContructorArgs, p
 end
 
 -- Creates a projectile
-function Simulation.CreateProjectile(constructorArgs: ProjectileContructorArgs, projectileSettings: ProjectileSettings?): Projectile
+function Simulation.CreateProjectile(constructorArgs: ProjectileConstructorArgs, projectileSettings: ProjectileSettings?): Projectile
 	local projectile = NewProjectile(constructorArgs, projectileSettings)
 	projectile._Active = false
 	return projectile
@@ -341,6 +343,7 @@ end
 -- Activates a projectile making it start simulating
 function Simulation.ActivateProjectile(projectile: Projectile)
 	if projectile._Active then return end
+	projectile._Active = true
 	if projectile.ProjectilePart then
 		MoveProjectileToArray(ActiveInstancedProjectiles, projectile)
 	else
@@ -351,6 +354,7 @@ end
 -- Deactivates a projectile making it stop simulating
 function Simulation.DeactivateProjectile(projectile: Projectile)
 	if not projectile._Active then return end
+	projectile._Active = false
 	RemoveProjectile(projectile)
 end
 
@@ -360,7 +364,7 @@ function Simulation.StepProjectile(projectile: Projectile, deltaTime: number)
 
 	UpdateProjectile(projectile, deltaTime)
 	if projectile.ProjectilePart then
-		projectile.ProjectilePart.CFrame = CFrame.new(projectile.Position)
+		projectile.ProjectilePart.CFrame = projectile.ProjectilePartRotation.Rotation + projectile.Position
 	end
 
 	local newEventCount = #QueuedProjectileEvents - lastEventIndex
@@ -375,17 +379,15 @@ end
 
 -- Sets a projectile part for the projectile
 function Simulation.SetProjectilePart(projectile: Projectile, basePart: BasePart?)
+	local oldPart = projectile.ProjectilePart
 	projectile.ProjectilePart = basePart
-
-	local isBasePartNil = basePart == nil
-	local isProjectiePartNil = projectile.ProjectilePart == nil
-	if isBasePartNil == isProjectiePartNil then return end
+	if (oldPart == nil) == (basePart == nil) then return end
 
 	DestroyProjectileMotor6D(projectile)
 	if Config.MovementMethod == "Transform" then
 		ConnectTransform(projectile)
 	end
-	
+
 	if projectile.ProjectilePart then
 		MoveProjectileToArray(ActiveInstancedProjectiles, projectile)
 	else
@@ -420,7 +422,7 @@ function Simulation.Step(deltaTime: number)
 		end
 	end
 
-	if #ActiveInstancedProjectiles >= 0 then
+	if #ActiveInstancedProjectiles > 0 then
 		UpdateInstancedProjectiles(deltaTime, destroyedProjectiles)
 	end
 

@@ -11,7 +11,7 @@ local ProjectileSettings = require(script.ProjectileSettings)
 export type Projectile = Types.Projectile
 export type RaycastFunction = Types.RaycastFunction
 export type ProjectileSettings = Types.ProjectileSettings
-export type ProjectileContructorArgs = Types.ProjectileContructorArgs
+export type ProjectileConstructorArgs = Types.ProjectileConstructorArgs
 
 SwiftCast.ProjectileSettings = ProjectileSettings
 SwiftCast.RaycastFunctions = RaycastFunctions
