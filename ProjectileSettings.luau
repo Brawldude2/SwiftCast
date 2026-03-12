@@ -11,7 +11,7 @@ function ProjectileSettings.new(projectileSettings: Types.ProjectileSettingsOpti
 	return {
 		MaxFlyTime = projectileSettings.MaxFlyTime or math.huge,
 		MaxFlyDistance = projectileSettings.MaxFlyDistance or 100,
-		RaysPerMove =  projectileSettings.RaysPerMove or 1,
+		MaxPiercesPerStep =  projectileSettings.MaxPiercesPerStep or 1,
 		RaycastParams = projectileSettings.RaycastParams or RaycastParams.new(),
 		RaycastFunction = projectileSettings.RaycastFunction or RaycastFunctions.Default,
 		CanPierce = projectileSettings.CanPierce or false,

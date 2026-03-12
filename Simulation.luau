@@ -38,7 +38,6 @@ Motor6DAnchor.Parent = workspace
 local DefaultProjectileSettings = ProjectileSettings.new()
 local StepConnection: RBXScriptConnection? = nil
 
-
 local function OnError(errorMessage: string)
 	warn(debug.traceback(errorMessage, 2))
 end
@@ -68,9 +67,11 @@ local function ConnectTransform(projectile: Projectile)
 	motor6d.Parent = Motor6DAnchor
 	ClearPostTransformConnections(projectile)
 	projectile._ProjectileMotor6D = motor6d
-	if projectile.PostTransform then
+	if projectile.PostTransform or projectile.PostTransformSafe then
 		projectile._PostTransformFireConnection = RunService.Heartbeat:Once(function(deltaTime: number)
-			projectile.PostTransform(projectile)
+			if projectile.PostTransform then
+				projectile.PostTransform(projectile)
+			end
 			if projectile.PostTransformSafe then
 				projectile._PostTransformFireConnection = RunService.Heartbeat:Once(function(deltaTime: number)
 					projectile.PostTransformSafe(projectile)
@@ -181,42 +182,47 @@ local function UpdateProjectile(projectile: Projectile, deltaTime: number)
 	
 	local position = projectile.Position
 	
-	local newVelocity = projectile.Velocity + projectile.Acceleration * deltaTime
-	local newPosition = position + newVelocity * deltaTime
+	local newVelocity = projectile.Velocity + (projectile.Acceleration * deltaTime)
+	local newPosition = position + (newVelocity * deltaTime)
 	
-	local deltaPosition = newPosition - position
-	local distance = deltaPosition.Magnitude
-
-	if distance <= EPSILON then
+	local deltaDistance = (newPosition - position).Magnitude
+	if deltaDistance <= EPSILON then
 		QueueProjectileEvent(projectile.OnStep, projectile, deltaTime)
 		return
 	end
 	
-	projectile.DistanceTravelled += distance
+	projectile.DistanceTravelled += deltaDistance
 	if projectile.DistanceTravelled >= projectile.MaxFlyDistance then
 		MarkProjectileAsDestroyed(projectile, "MaxDistance")
 		return
 	end
 
 	local direction = newVelocity.Unit
-	local raycastFunction = projectile.RaycastFunction
 	local raycastParams = projectile.RaycastParams
-	local raysPerMove = projectile.RaysPerMove
-	local rayMagnitude = distance / raysPerMove
+	local raycastFunction = projectile.RaycastFunction
+	
+	local rayOrigin = position
+	local rayOffset = direction * 0.01
+	local remainingDistance = deltaDistance
 
-	for iteration = 1, raysPerMove do
-		local rayDirection = direction * rayMagnitude
-		local raycastResult = raycastFunction(position + rayDirection * (iteration - 1), rayDirection, raycastParams, projectile, iteration)
-		if raycastResult then
-			local canPierce = GetCanPierce(projectile, raycastResult)
-
-			if canPierce == true then
-				QueueProjectileEvent(projectile.OnRayPierce, projectile, raycastResult)
-			else
-				MarkProjectileAsDestroyed(projectile, "Hit")
-				return
-			end
+	for iteration = 1, projectile.MaxPiercesPerStep do
+		local raycastResult = raycastFunction(rayOrigin, direction * remainingDistance, raycastParams, projectile, iteration)
+		if not raycastResult then break end
+		
+		local canPierce = GetCanPierce(projectile, raycastResult)
+		if canPierce ~= true then
+			MarkProjectileAsDestroyed(projectile, "Hit")
+			return
 		end
+		
+		QueueProjectileEvent(projectile.OnRayPierce, projectile, raycastResult)
+
+		remainingDistance -= raycastResult.Distance + 0.01
+		if remainingDistance <= 0 then
+			break
+		end
+
+		rayOrigin = raycastResult.Position + rayOffset
 	end
 
 	QueueProjectileEvent(projectile.OnStep, projectile, deltaTime)
@@ -282,7 +288,7 @@ local function NewProjectile(constructorArgs: ProjectileConstructorArgs, project
 
 		MaxFlyTime = constructorArgs.MaxFlyTime or projectileSettings.MaxFlyTime,
 		MaxFlyDistance = constructorArgs.MaxFlyDistance or projectileSettings.MaxFlyDistance,
-		RaysPerMove = constructorArgs.RaysPerMove or projectileSettings.RaysPerMove,
+		MaxPiercesPerStep = constructorArgs.MaxPiercesPerStep or projectileSettings.MaxPiercesPerStep,
 		RaycastParams = constructorArgs.RaycastParams or projectileSettings.RaycastParams,
 		RaycastFunction = constructorArgs.RaycastFunction or projectileSettings.RaycastFunction,
 		ProjectilePart = projectilePart,

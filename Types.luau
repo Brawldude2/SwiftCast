@@ -23,7 +23,7 @@ export type Config = {
 export type ProjectileSettings = {
 	MaxFlyTime: number,
 	MaxFlyDistance: number,
-	RaysPerMove: number,
+	MaxPiercesPerStep: number,
 	RaycastParams: RaycastParams,
 	RaycastFunction: RaycastFunction,
 	CanPierce: CanPierce,
@@ -36,7 +36,7 @@ export type ProjectileSettings = {
 export type ProjectileSettingsOptional = {
 	MaxFlyTime: number?,
 	MaxFlyDistance: number?,
-	RaysPerMove: number?,
+	MaxPiercesPerStep: number?,
 	RaycastParams: RaycastParams?,
 	RaycastFunction: RaycastFunction?,
 	CanPierce: CanPierce?,
@@ -49,7 +49,7 @@ export type ProjectileSettingsOptional = {
 export type ProjectileConstructorArgs = {
 	MaxFlyTime: number?,
 	MaxFlyDistance: number?,
-	RaysPerMove: number?,
+	MaxPiercesPerStep: number?,
 	RaycastParams: RaycastParams?,
 	RaycastFunction: RaycastFunction?,
 	CanPierce: CanPierce?,
@@ -95,7 +95,7 @@ export type Projectile = {
 	-- Data
 	MaxFlyTime: number,
 	MaxFlyDistance: number,
-	RaysPerMove: number,
+	MaxPiercesPerStep: number,
 	RaycastParams: RaycastParams,
 	RaycastFunction: RaycastFunction,
 	ProjectilePart: BasePart?,
