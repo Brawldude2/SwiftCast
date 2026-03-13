@@ -46,7 +46,7 @@ export type ProjectileSettingsOptional = {
 	ShapecastPart: BasePart?,
 }
 
-export type ProjectileContructorArgs = {
+export type ProjectileConstructorArgs = {
 	MaxFlyTime: number?,
 	MaxFlyDistance: number?,
 	MaxPiercesPerStep: number?,
