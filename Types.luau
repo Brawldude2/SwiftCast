@@ -7,7 +7,7 @@ export type PostTransform = (projectile: Projectile) -> ()
 export type PostTransformSafe = (projectile: Projectile) -> ()
 export type OnStep = (projectile: Projectile, deltaTime: number) -> ()
 export type OnPositionChange = (projectile: Projectile, newPosition: Vector3, oldPosition: Vector3) -> ()
-export type OnRayPierce = (projectile: Projectile, result: RaycastResult) -> ()
+export type OnHit = (projectile: Projectile, result: RaycastResult, hasPierced: boolean) -> ()
 export type OnDestroy = (projectile: Projectile, reason: string | "MaxTime" | "MaxDistance" | "Hit" | nil) -> ()
 export type CanPierceCallback = (projectile: Projectile, result: RaycastResult) -> (boolean)
 
@@ -18,6 +18,7 @@ export type Config = {
 	UseProtectedCalls: boolean,
 	StartOnRequire: boolean,
 	MovementMethod: "BulkMoveTo" | "Transform",
+	RaySearchOffset: number,
 }
 
 export type ProjectileSettings = {
@@ -58,7 +59,7 @@ export type ProjectileConstructorArgs = {
 	Velocity: Vector3?,
 	Acceleration: Vector3?,
 
-	OnRayPierce: OnRayPierce?,
+	OnHit: OnHit?,
 	OnStep: OnStep?,
 	OnPositionChange: OnPositionChange?,
 	OnDestroy: OnDestroy?,
@@ -103,7 +104,7 @@ export type Projectile = {
 	
 	-- Callbacks
 	CanPierce: CanPierce,
-	OnRayPierce: OnRayPierce?,
+	OnHit: OnHit?,
 	OnStep: OnStep?,
 	OnPositionChange: OnPositionChange?,
 	OnDestroy: OnDestroy?,

@@ -15,6 +15,7 @@ type ProjectileSettings = Types.ProjectileSettings
 type ProjectileConstructorArgs = Types.ProjectileConstructorArgs
 
 local EPSILON = 1e-6
+local RAY_SEARCH_OFFSET = Config.RaySearchOffset
 
 local ActiveInstancedProjectiles: {Projectile} = {}
 local ActiveInstancelessProjectiles: {Projectile} = {}
@@ -82,7 +83,7 @@ local function ConnectTransform(projectile: Projectile)
 	return motor6d
 end
 
-local function GetCanPierce(projectile: Projectile, raycastResult: RaycastResult): boolean
+local function HasRayPierced(projectile: Projectile, raycastResult: RaycastResult): boolean
 	if typeof(projectile.CanPierce) == "function" then
 		return projectile.CanPierce(projectile, raycastResult)
 	else
@@ -202,22 +203,21 @@ local function UpdateProjectile(projectile: Projectile, deltaTime: number)
 	local raycastFunction = projectile.RaycastFunction
 	
 	local rayOrigin = position
-	local rayOffset = direction * 0.01
+	local rayOffset = direction * RAY_SEARCH_OFFSET
 	local remainingDistance = deltaDistance
 
 	for iteration = 1, projectile.MaxPiercesPerStep do
 		local raycastResult = raycastFunction(rayOrigin, direction * remainingDistance, raycastParams, projectile, iteration)
 		if not raycastResult then break end
 		
-		local canPierce = GetCanPierce(projectile, raycastResult)
-		if canPierce ~= true then
+		local hasPierced = HasRayPierced(projectile, raycastResult)
+		QueueProjectileEvent(projectile.OnHit, projectile, raycastResult, hasPierced)
+		if hasPierced ~= true then
 			MarkProjectileAsDestroyed(projectile, "Hit")
 			return
 		end
-		
-		QueueProjectileEvent(projectile.OnRayPierce, projectile, raycastResult)
 
-		remainingDistance -= raycastResult.Distance + 0.01
+		remainingDistance -= raycastResult.Distance + RAY_SEARCH_OFFSET
 		if remainingDistance <= 0 then
 			break
 		end
@@ -296,7 +296,7 @@ local function NewProjectile(constructorArgs: ProjectileConstructorArgs, project
 
 		CanPierce = canPierce,
 		
-		OnRayPierce = constructorArgs.OnRayPierce,
+		OnHit = constructorArgs.OnHit,
 		OnStep = constructorArgs.OnStep,
 		OnPositionChange = constructorArgs.OnPositionChange,
 		OnDestroy = constructorArgs.OnDestroy,
