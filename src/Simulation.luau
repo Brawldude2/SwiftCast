@@ -24,17 +24,24 @@ local QueuedProjectileEvents: {ProjectileEvent} = {}
 
 local PartTemplate = Instance.new("Part") :: BasePart
 local Motor6DTemplate = Instance.new("Motor6D")
-local Motor6DAnchor = Instance.new("Part")
-Motor6DAnchor.Name = "SwiftCastAnchor"
-Motor6DAnchor.Transparency = 1
-Motor6DAnchor.CanCollide = false
-Motor6DAnchor.CanQuery = false
-Motor6DAnchor.CanTouch = false
-Motor6DAnchor.AudioCanCollide = false
-Motor6DAnchor.EnableFluidForces = false
-Motor6DAnchor.Anchored = true
-Motor6DAnchor.CFrame = CFrame.identity
-Motor6DAnchor.Parent = workspace
+local Motor6DAnchor: BasePart = nil
+if Config.MovementMethod == "Transform" then
+	Motor6DAnchor = Instance.new("Part")
+	Motor6DAnchor.Name = "SwiftCastAnchor"
+	Motor6DAnchor.Transparency = 1
+	Motor6DAnchor.CanCollide = false
+	Motor6DAnchor.CanQuery = false
+	Motor6DAnchor.CanTouch = false
+	Motor6DAnchor.AudioCanCollide = false
+	Motor6DAnchor.EnableFluidForces = false
+	Motor6DAnchor.Anchored = true
+	Motor6DAnchor.CFrame = CFrame.identity
+	Motor6DAnchor.Parent = workspace
+	Motor6DAnchor:GetPropertyChangedSignal("CFrame"):Connect(function()
+		if Motor6DAnchor.CFrame == CFrame.identity then return end
+		warn("[SwiftCast]: Motor6DAnchor part cframe has changed. Transform mode may not work properly.")
+	end)
+end
 
 local DefaultProjectileSettings = ProjectileSettings.new()
 local StepConnection: RBXScriptConnection? = nil
@@ -197,6 +204,8 @@ local function UpdateProjectile(projectile: Projectile, deltaTime: number)
 		MarkProjectileAsDestroyed(projectile, "MaxDistance")
 		return
 	end
+	
+	QueueProjectileEvent(projectile.OnStep, projectile, deltaTime)
 
 	local direction = newVelocity.Unit
 	local raycastParams = projectile.RaycastParams
@@ -214,6 +223,8 @@ local function UpdateProjectile(projectile: Projectile, deltaTime: number)
 		QueueProjectileEvent(projectile.OnHit, projectile, raycastResult, hasPierced)
 		if hasPierced ~= true then
 			MarkProjectileAsDestroyed(projectile, "Hit")
+			projectile.Position = raycastResult.Position
+			QueueProjectileEvent(projectile.OnPositionChange, projectile, newPosition, position)
 			return
 		end
 
@@ -224,8 +235,7 @@ local function UpdateProjectile(projectile: Projectile, deltaTime: number)
 
 		rayOrigin = raycastResult.Position + rayOffset
 	end
-
-	QueueProjectileEvent(projectile.OnStep, projectile, deltaTime)
+	
 	QueueProjectileEvent(projectile.OnPositionChange, projectile, newPosition, position)
 
 	projectile.PreviousPosition = position
@@ -432,11 +442,11 @@ function Simulation.Step(deltaTime: number)
 		UpdateInstancedProjectiles(deltaTime, destroyedProjectiles)
 	end
 
-	DispatchAllProjectileEvents()
-
 	for _, projectile in destroyedProjectiles do
 		DestroyProjectile(projectile)
 	end
+	
+	DispatchAllProjectileEvents()
 end
 
 if Config.StartOnRequire then

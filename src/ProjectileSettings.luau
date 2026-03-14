@@ -10,9 +10,9 @@ function ProjectileSettings.new(projectileSettings: Types.ProjectileSettingsOpti
 	local projectileSettings: Types.ProjectileSettingsOptional = projectileSettings or {}
 	return {
 		MaxFlyTime = projectileSettings.MaxFlyTime or math.huge,
-		MaxFlyDistance = projectileSettings.MaxFlyDistance or 100,
+		MaxFlyDistance = projectileSettings.MaxFlyDistance or math.huge,
 		MaxPiercesPerStep =  projectileSettings.MaxPiercesPerStep or 1,
-		RaycastParams = projectileSettings.RaycastParams or RaycastParams.new(),
+		RaycastParams = projectileSettings.RaycastParams,
 		RaycastFunction = projectileSettings.RaycastFunction or RaycastFunctions.Default,
 		CanPierce = projectileSettings.CanPierce or false,
 		BlockcastSize = projectileSettings.BlockcastSize,

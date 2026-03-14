@@ -1,7 +1,7 @@
 --!strict
 
 export type CanPierce = (CanPierceCallback | boolean)
-export type RaycastFunction = (rayOrigin: Vector3, rayDirection: Vector3, raycastParams: RaycastParams, projectile: Projectile, iteration: number) -> (RaycastResult?)
+export type RaycastFunction = (rayOrigin: Vector3, rayDirection: Vector3, raycastParams: RaycastParams?, projectile: Projectile, iteration: number) -> (RaycastResult?)
 
 export type PostTransform = (projectile: Projectile) -> ()
 export type PostTransformSafe = (projectile: Projectile) -> ()
@@ -25,7 +25,7 @@ export type ProjectileSettings = {
 	MaxFlyTime: number,
 	MaxFlyDistance: number,
 	MaxPiercesPerStep: number,
-	RaycastParams: RaycastParams,
+	RaycastParams: RaycastParams?,
 	RaycastFunction: RaycastFunction,
 	CanPierce: CanPierce,
 
@@ -97,7 +97,7 @@ export type Projectile = {
 	MaxFlyTime: number,
 	MaxFlyDistance: number,
 	MaxPiercesPerStep: number,
-	RaycastParams: RaycastParams,
+	RaycastParams: RaycastParams?,
 	RaycastFunction: RaycastFunction,
 	ProjectilePart: BasePart?,
 	ProjectilePartRotation: CFrame,
