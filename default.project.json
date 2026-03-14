@@ -4,7 +4,14 @@
     "$className": "DataModel",
 
     "ReplicatedStorage": {
-      "SwiftCast": {"$path": "src"}
+      "SwiftCast": {
+        "$path": "src",
+        "$properties": {
+          "Attributes": {
+            "Version": {"String": "1.3"}
+          }
+        }
+      }
     }
   }
 }
