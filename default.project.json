@@ -4,7 +4,7 @@
     "$className": "DataModel",
 
     "ReplicatedStorage": {
-      "SwiftCast": {"$path": "src\\SwiftCast"}
+      "SwiftCast": {"$path": "src"}
     }
   }
 }
