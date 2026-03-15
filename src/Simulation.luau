@@ -302,7 +302,7 @@ local function NewProjectile(constructorArgs: ProjectileConstructorArgs, project
 		RaycastParams = constructorArgs.RaycastParams or projectileSettings.RaycastParams,
 		RaycastFunction = constructorArgs.RaycastFunction or projectileSettings.RaycastFunction,
 		ProjectilePart = projectilePart,
-		ProjectilePartRotation = projectilePartRotation,
+		ProjectilePartRotation = constructorArgs.ProjectilePartRotation or projectilePartRotation,
 
 		CanPierce = canPierce,
 		
