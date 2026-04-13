@@ -1,0 +1,11 @@
+{
+  "name": "SwiftCast",
+  "tree": {
+    "$path": "src",
+    "$properties": {
+      "Attributes": {
+        "Version": {"String": "1.4"}
+      }
+    }
+  }
+}

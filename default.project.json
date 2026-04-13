@@ -2,13 +2,14 @@
   "name": "project",
   "tree": {
     "$className": "DataModel",
-
     "ReplicatedStorage": {
       "SwiftCast": {
         "$path": "src",
         "$properties": {
           "Attributes": {
-            "Version": {"String": "1.3"}
+            "Version": {
+              "String": "1.4"
+            }
           }
         }
       }

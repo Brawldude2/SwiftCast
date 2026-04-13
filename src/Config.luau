@@ -13,5 +13,8 @@ local Config: Types.Config = {
 	
 	-- The offset ray adds to the raycast position to search for the next hit
 	RaySearchOffset = 0.001,
+	
+	-- Fixed delta time for velocity and position updates to prevent drifting
+	FixedDeltaTime = 1/240,
 }
 return table.freeze(Config)

@@ -19,6 +19,7 @@ export type Config = {
 	StartOnRequire: boolean,
 	MovementMethod: "BulkMoveTo" | "Transform",
 	RaySearchOffset: number,
+	FixedDeltaTime: number,
 }
 
 export type ProjectileSettings = {
@@ -84,6 +85,7 @@ export type Projectile = {
 	_ProjectileArray: {Projectile}?,
 	_ProjectileMotor6D: Motor6D,
 	_PostTransformFireConnection: RBXScriptConnection?,
+	_Accumulator: number,
 	
 	-- State
 	PreviousPosition: Vector3,

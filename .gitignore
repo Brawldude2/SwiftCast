@@ -1,6 +1,7 @@
-/*.rbxm
+/*.lock
 /*.rbxl
 /*.rbxlx
-/*.rbxl.lock
-/*.rbxlx.lock
-sourcemap.json
+/*.rbxm
+/*.rbxmx
+/sourcemap.json
+.DS_Store

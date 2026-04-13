@@ -16,6 +16,7 @@ type ProjectileConstructorArgs = Types.ProjectileConstructorArgs
 
 local EPSILON = 1e-6
 local RAY_SEARCH_OFFSET = Config.RaySearchOffset
+local FIXED_DELTA_TIME = Config.FixedDeltaTime
 
 local ActiveInstancedProjectiles: {Projectile} = {}
 local ActiveInstancelessProjectiles: {Projectile} = {}
@@ -188,14 +189,28 @@ local function UpdateProjectile(projectile: Projectile, deltaTime: number)
 		return
 	end
 	
-	local position = projectile.Position
+	local accumulator = projectile._Accumulator + deltaTime
+	if accumulator < FIXED_DELTA_TIME then
+		return
+	end
 	
-	local newVelocity = projectile.Velocity + (projectile.Acceleration * deltaTime)
-	local newPosition = position + (newVelocity * deltaTime)
+	local stepCount = accumulator // FIXED_DELTA_TIME
+	local stepDeltaTime = stepCount * FIXED_DELTA_TIME
+	projectile._Accumulator = accumulator - stepDeltaTime
+	
+	local position = projectile.Position
+	local acceleration = projectile.Acceleration
+	
+	-- Closed-Form discrete fixed timestep integration under constant-acceleration 
+	local newVelocity = projectile.Velocity
+	local newPosition = position
+		+ newVelocity * stepDeltaTime
+		+ 0.5 * acceleration * FIXED_DELTA_TIME * FIXED_DELTA_TIME * stepCount * (stepCount + 1)
+	newVelocity += acceleration * stepDeltaTime
 	
 	local deltaDistance = (newPosition - position).Magnitude
 	if deltaDistance <= EPSILON then
-		QueueProjectileEvent(projectile.OnStep, projectile, deltaTime)
+		QueueProjectileEvent(projectile.OnStep, projectile, stepDeltaTime)
 		return
 	end
 	
@@ -205,7 +220,7 @@ local function UpdateProjectile(projectile: Projectile, deltaTime: number)
 		return
 	end
 	
-	QueueProjectileEvent(projectile.OnStep, projectile, deltaTime)
+	QueueProjectileEvent(projectile.OnStep, projectile, stepDeltaTime)
 
 	local direction = newVelocity.Unit
 	local raycastParams = projectile.RaycastParams
@@ -222,9 +237,9 @@ local function UpdateProjectile(projectile: Projectile, deltaTime: number)
 		local hasPierced = HasRayPierced(projectile, raycastResult)
 		QueueProjectileEvent(projectile.OnHit, projectile, raycastResult, hasPierced)
 		if hasPierced ~= true then
-			MarkProjectileAsDestroyed(projectile, "Hit")
 			projectile.Position = raycastResult.Position
 			QueueProjectileEvent(projectile.OnPositionChange, projectile, newPosition, position)
+			MarkProjectileAsDestroyed(projectile, "Hit")
 			return
 		end
 
@@ -287,6 +302,7 @@ local function NewProjectile(constructorArgs: ProjectileConstructorArgs, project
 		_Index = 0,
 		_ProjectileMotor6D = Motor6DTemplate,
 		_PostTransformFireConnection = nil,
+		_Accumulator = 0,
 
 		Position = position,
 		PreviousPosition = position,
