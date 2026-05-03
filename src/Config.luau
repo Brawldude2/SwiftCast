@@ -9,7 +9,7 @@ local Config: Types.Config = {
 	StartOnRequire = true,
 
 	-- Switches between BulkMoveTo and Transform movement methods
-	MovementMethod = "Transform",
+	MovementMethod = "BulkMoveTo",
 
 	-- The offset ray adds to the raycast position to search for the next hit
 	RaySearchOffset = 0.001,
