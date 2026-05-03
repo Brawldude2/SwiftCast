@@ -7,6 +7,7 @@ Simulation.IsRunning = false
 local RunService = game:GetService("RunService")
 local Types = require(script.Parent.Types)
 local Config = require(script.Parent.Config)
+local Motor6DPool = require(script.Parent.Motor6DPool)
 local ProjectileSettings = require(script.Parent.ProjectileSettings)
 
 type Projectile = Types.Projectile
@@ -42,6 +43,8 @@ if Config.MovementMethod == "Transform" then
 		if Motor6DAnchor.CFrame == CFrame.identity then return end
 		warn("[SwiftCast]: Motor6DAnchor part cframe has changed. Transform mode may not work properly.")
 	end)
+
+	Motor6DPool.Initialize()
 end
 
 local DefaultProjectileSettings = ProjectileSettings.new()
@@ -59,9 +62,11 @@ local function ClearPostTransformConnections(projectile: Projectile)
 	end
 end
 
-local function DestroyProjectileMotor6D(projectile: Projectile)
-	if projectile._ProjectileMotor6D ~= Motor6DTemplate then
-		projectile._ProjectileMotor6D:Destroy()
+local function ReturnProjectileMotor6D(projectile: Projectile)
+	local currentMotor6D = projectile._ProjectileMotor6D
+	if currentMotor6D ~= Motor6DTemplate then
+		Motor6DPool.Return(currentMotor6D)
+		projectile._ProjectileMotor6D = Motor6DTemplate
 	end
 end
 
@@ -69,11 +74,14 @@ local function ConnectTransform(projectile: Projectile)
 	local projectilePart = projectile.ProjectilePart
 	if not projectilePart then return end
 	projectilePart.Anchored = false
-	local motor6d = Instance.new("Motor6D")
+
+	local motor6d = Motor6DPool.Get()
+	
 	motor6d.Transform = projectilePart.CFrame
 	motor6d.Part0 = Motor6DAnchor
 	motor6d.Part1 = projectile.ProjectilePart
 	motor6d.Parent = Motor6DAnchor
+
 	ClearPostTransformConnections(projectile)
 	projectile._ProjectileMotor6D = motor6d
 	if projectile.PostTransform or projectile.PostTransformSafe then
@@ -88,6 +96,7 @@ local function ConnectTransform(projectile: Projectile)
 			end
 		end)
 	end
+	
 	return motor6d
 end
 
@@ -165,9 +174,9 @@ end
 
 local function DestroyProjectile(projectile: Projectile)
 	if projectile._Destroyed then return end
-	RemoveProjectile(projectile)
-	DestroyProjectileMotor6D(projectile)
+	ReturnProjectileMotor6D(projectile)
 	ClearPostTransformConnections(projectile)
+	RemoveProjectile(projectile)
 	projectile._MarkedForDestruction = true
 	projectile._Destroyed = true
 end
@@ -188,44 +197,44 @@ local function UpdateProjectile(projectile: Projectile, deltaTime: number)
 		MarkProjectileAsDestroyed(projectile, "MaxTime")
 		return
 	end
-	
+
 	local accumulator = projectile._Accumulator + deltaTime
 	if accumulator < FIXED_DELTA_TIME then
 		return
 	end
-	
+
 	local stepCount = accumulator // FIXED_DELTA_TIME
 	local stepDeltaTime = stepCount * FIXED_DELTA_TIME
 	projectile._Accumulator = accumulator - stepDeltaTime
-	
+
 	local position = projectile.Position
 	local acceleration = projectile.Acceleration
-	
+
 	-- Closed-Form discrete fixed timestep integration under constant-acceleration 
 	local newVelocity = projectile.Velocity
 	local newPosition = position
 		+ newVelocity * stepDeltaTime
 		+ 0.5 * acceleration * FIXED_DELTA_TIME * FIXED_DELTA_TIME * stepCount * (stepCount + 1)
 	newVelocity += acceleration * stepDeltaTime
-	
+
 	local deltaDistance = (newPosition - position).Magnitude
 	if deltaDistance <= EPSILON then
 		QueueProjectileEvent(projectile.OnStep, projectile, stepDeltaTime)
 		return
 	end
-	
+
 	projectile.DistanceTravelled += deltaDistance
 	if projectile.DistanceTravelled >= projectile.MaxFlyDistance then
 		MarkProjectileAsDestroyed(projectile, "MaxDistance")
 		return
 	end
-	
+
 	QueueProjectileEvent(projectile.OnStep, projectile, stepDeltaTime)
 
 	local direction = newVelocity.Unit
 	local raycastParams = projectile.RaycastParams
 	local raycastFunction = projectile.RaycastFunction
-	
+
 	local rayOrigin = position
 	local rayOffset = direction * RAY_SEARCH_OFFSET
 	local remainingDistance = deltaDistance
@@ -233,7 +242,7 @@ local function UpdateProjectile(projectile: Projectile, deltaTime: number)
 	for iteration = 1, projectile.MaxPiercesPerStep do
 		local raycastResult = raycastFunction(rayOrigin, direction * remainingDistance, raycastParams, projectile, iteration)
 		if not raycastResult then break end
-		
+
 		local hasPierced = HasRayPierced(projectile, raycastResult)
 		QueueProjectileEvent(projectile.OnHit, projectile, raycastResult, hasPierced)
 		if hasPierced ~= true then
@@ -250,7 +259,7 @@ local function UpdateProjectile(projectile: Projectile, deltaTime: number)
 
 		rayOrigin = raycastResult.Position + rayOffset
 	end
-	
+
 	QueueProjectileEvent(projectile.OnPositionChange, projectile, newPosition, position)
 
 	projectile.PreviousPosition = position
@@ -308,7 +317,7 @@ local function NewProjectile(constructorArgs: ProjectileConstructorArgs, project
 		PreviousPosition = position,
 		Velocity = constructorArgs.Velocity or Vector3.zero,
 		Acceleration = constructorArgs.Acceleration or Vector3.zero,
-		
+
 		Elapsed = 0,
 		DistanceTravelled = 0,
 
@@ -321,7 +330,7 @@ local function NewProjectile(constructorArgs: ProjectileConstructorArgs, project
 		ProjectilePartRotation = constructorArgs.ProjectilePartRotation or projectilePartRotation,
 
 		CanPierce = canPierce,
-		
+
 		OnHit = constructorArgs.OnHit,
 		OnStep = constructorArgs.OnStep,
 		OnPositionChange = constructorArgs.OnPositionChange,
@@ -334,11 +343,11 @@ local function NewProjectile(constructorArgs: ProjectileConstructorArgs, project
 		ShapecastPart = constructorArgs.ShapecastPart or projectileSettings.ShapecastPart,
 		UserData = constructorArgs.UserData,
 	}
-	
+
 	if Config.MovementMethod == "Transform" then
 		ConnectTransform(projectile)
 	end
-	
+
 	return projectile
 end
 
@@ -415,7 +424,7 @@ function Simulation.SetProjectilePart(projectile: Projectile, basePart: BasePart
 	projectile.ProjectilePart = basePart
 	if (oldPart == nil) == (basePart == nil) then return end
 
-	DestroyProjectileMotor6D(projectile)
+	ReturnProjectileMotor6D(projectile)
 	if Config.MovementMethod == "Transform" then
 		ConnectTransform(projectile)
 	end
@@ -461,7 +470,7 @@ function Simulation.Step(deltaTime: number)
 	for _, projectile in destroyedProjectiles do
 		DestroyProjectile(projectile)
 	end
-	
+
 	DispatchAllProjectileEvents()
 end
 

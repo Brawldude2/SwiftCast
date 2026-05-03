@@ -20,6 +20,7 @@ export type Config = {
 	MovementMethod: "BulkMoveTo" | "Transform",
 	RaySearchOffset: number,
 	FixedDeltaTime: number,
+	InitialMotor6DPoolSize: number,
 }
 
 export type ProjectileSettings = {
